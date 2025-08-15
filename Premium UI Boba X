@@ -57,48 +57,48 @@ if not isfolder("Boba X") then
     makefolder("Boba X")
 end
 
-local Connections = setmetatable({}, {
-    __index = {
-        disconnect = function(self, connection)
-            if not self[connection] then
-                return
+
+local Connections = setmetatable({
+    disconnect = function(self, connection)
+        if not self[connection] then
+            return
+        end
+   
+        self[connection]:Disconnect()
+        self[connection] = nil
+    end,
+    disconnect_all = function(self)
+        for _, value in self do
+            if typeof(value) == 'function' then
+                continue
             end
    
-            self[connection]:Disconnect()
-            self[connection] = nil
-        end,
-        disconnect_all = function(self)
-            for _, value in pairs(self) do
-                if typeof(value) == 'function' then
-                    continue
-                end
-   
-                value:Disconnect()
-            end
+            value:Disconnect()
         end
-    }
-})
+    end
+}, Connections)
 
-local Util = setmetatable({}, {
-    __index = {
-        map = function(self, value, in_minimum, in_maximum, out_minimum, out_maximum)
-            return (value - in_minimum) * (out_maximum - out_minimum) / (in_maximum - in_minimum) + out_minimum
-        end,
-        viewport_point_to_world = function(self, location, distance)
-            local unit_ray = workspace.CurrentCamera:ScreenPointToRay(location.X, location.Y)
 
-            return unit_ray.Origin + unit_ray.Direction * distance
-        end,
-        get_offset = function(self)
-            local viewport_size_Y = workspace.CurrentCamera.ViewportSize.Y
+local Util = setmetatable({
+    map = function(self, value, in_minimum, in_maximum, out_minimum, out_maximum)
+        return (value - in_minimum) * (out_maximum - out_minimum) / (in_maximum - in_minimum) + out_minimum
+    end,
+    viewport_point_to_world = function(self, location, distance)
+        local unit_ray = workspace.CurrentCamera:ScreenPointToRay(location.X, location.Y)
 
-            return self:map(viewport_size_Y, 0, 2560, 8, 56)
-        end
-    }
-})
+        return unit_ray.Origin + unit_ray.Direction * distance
+    end,
+    get_offset = function(self)
+        local viewport_size_Y = workspace.CurrentCamera.ViewportSize.Y
+
+        return self:map(viewport_size_Y, 0, 2560, 8, 56)
+    end
+}, Util)
+
 
 local AcrylicBlur = {}
 AcrylicBlur.__index = AcrylicBlur
+
 
 function AcrylicBlur.new(object)
     local self = setmetatable({
@@ -113,6 +113,7 @@ function AcrylicBlur.new(object)
     return self
 end
 
+
 function AcrylicBlur:create_folder()
     local old_folder = workspace.CurrentCamera:FindFirstChild('AcrylicBlur')
 
@@ -126,6 +127,7 @@ function AcrylicBlur:create_folder()
 
     self._folder = folder
 end
+
 
 function AcrylicBlur:create_depth_of_fields()
     local depth_of_fields = Lighting:FindFirstChild('AcrylicBlur') or Instance.new('DepthOfFieldEffect')
@@ -153,6 +155,7 @@ function AcrylicBlur:create_depth_of_fields()
     end
 end
 
+
 function AcrylicBlur:create_frame()
     local frame = Instance.new('Frame')
     frame.Size = UDim2.new(1, 0, 1, 0)
@@ -163,6 +166,7 @@ function AcrylicBlur:create_frame()
 
     self._frame = frame
 end
+
 
 function AcrylicBlur:create_root()
     local part = Instance.new('Part')
@@ -187,6 +191,7 @@ function AcrylicBlur:create_root()
     self._root = part  -- Store the part as root
 end
 
+
 function AcrylicBlur:setup()
     self:create_depth_of_fields()
     self:create_folder()
@@ -197,6 +202,7 @@ function AcrylicBlur:setup()
 
     self:check_quality_level()
 end
+
 
 function AcrylicBlur:render(distance)
     local positions = {
@@ -247,8 +253,9 @@ function AcrylicBlur:render(distance)
     Connections['frame_absolute_position'] = self._frame:GetPropertyChangedSignal('AbsolutePosition'):Connect(on_change)
     Connections['frame_absolute_size'] = self._frame:GetPropertyChangedSignal('AbsoluteSize'):Connect(on_change)
    
-    task.spawn(on_change) -- Initial call
+    task.spawn(update)
 end
+
 
 function AcrylicBlur:check_quality_level()
     local game_settings = UserSettings().GameSettings
@@ -266,57 +273,58 @@ function AcrylicBlur:check_quality_level()
     end)
 end
 
+
 function AcrylicBlur:change_visiblity(state)
     self._root.Transparency = state and 0.98 or 1
 end
 
-local Config = setmetatable({}, {
-    __index = {
-        save = function(self, file_name, config)
-            local success_save, result = pcall(function()
-                local flags = HttpService:JSONEncode(config)
-                writefile('Boba X/'..file_name..'.json', flags)
-            end)
-   
-            if not success_save then
-                warn('failed to save config', result)
-            end
-        end,
-        load = function(self, file_name, config)
-            local success_load, result = pcall(function()
-                if not isfile('Boba X/'..file_name..'.json') then
-                    self:save(file_name, config)
-           
-                    return
-                end
-           
-                local flags = readfile('Boba X/'..file_name..'.json')
-           
-                if not flags then
-                    self:save(file_name, config)
-           
-                    return
-                end
 
-                return HttpService:JSONDecode(flags)
-            end)
+local Config = setmetatable({
+    save = function(self, file_name, config)
+        local success_save, result = pcall(function()
+            local flags = HttpService:JSONEncode(config)
+            writefile('Boba X/'..file_name..'.json', flags)
+        end)
    
-            if not success_load then
-                warn('failed to load config', result)
-            end
-   
-            if not result then
-                result = {
-                    _flags = {},
-                    _keybinds = {},
-                    _library = {}
-                }
-            end
-   
-            return result
+        if not success_save then
+            warn('failed to save config', result)
         end
-    }
-})
+    end,
+    load = function(self, file_name, config)
+        local success_load, result = pcall(function()
+            if not isfile('Boba X/'..file_name..'.json') then
+                self:save(file_name, config)
+       
+                return
+            end
+       
+            local flags = readfile('Boba X/'..file_name..'.json')
+       
+            if not flags then
+                self:save(file_name, config)
+       
+                return
+            end
+
+            return HttpService:JSONDecode(flags)
+        end)
+   
+        if not success_load then
+            warn('failed to load config', result)
+        end
+   
+        if not result then
+            result = {
+                _flags = {},
+                _keybinds = {},
+                _library = {}
+            }
+        end
+   
+        return result
+    end
+}, Config)
+
 
 local Library = {
     _config = Config:load(game.GameId),
@@ -334,6 +342,7 @@ local Library = {
     _container_position = nil
 }
 Library.__index = Library
+
 
 function Library.new()
     local self = setmetatable({
@@ -353,7 +362,7 @@ NotificationContainer.Size = UDim2.new(0, 300, 0, 0)  -- Fixed width (300px), dy
 NotificationContainer.Position = UDim2.new(0.8, 0, 0, 10)  -- Right side, offset by 10 from top
 NotificationContainer.BackgroundTransparency = 1
 NotificationContainer.ClipsDescendants = false;
-NotificationContainer.Parent = game:GetService("CoreGui"):FindFirstChild("RobloxGui") or Instance.new("ScreenGui", game:GetService("CoreGui"))
+NotificationContainer.Parent = game:GetService("CoreGui").RobloxGui:FindFirstChild("RobloxCoreGuis") or Instance.new("ScreenGui", game:GetService("CoreGui").RobloxGui)
 NotificationContainer.AutomaticSize = Enum.AutomaticSize.Y
 
 -- UIListLayout to arrange notifications vertically
@@ -464,6 +473,7 @@ function Library:get_screen_scale()
     self._ui_scale = viewport_size_x / 1400
 end
 
+
 function Library:get_device()
     local device = 'Unknown'
 
@@ -478,9 +488,11 @@ function Library:get_device()
     self._device = device
 end
 
+
 function Library:removed(action)
     self._ui.AncestryChanged:Once(action)
 end
+
 
 function Library:flag_type(flag, flag_type)
     if not Library._config._flags[flag] then
@@ -489,6 +501,7 @@ function Library:flag_type(flag, flag_type)
 
     return typeof(Library._config._flags[flag]) == flag_type
 end
+
 
 function Library:remove_table_value(__table, table_value)
     for index, value in __table do
@@ -499,6 +512,7 @@ function Library:remove_table_value(__table, table_value)
         table.remove(__table, index)
     end
 end
+
 
 function Library:create_ui()
     local old_BobaX = CoreGui:FindFirstChild('Boba X')
@@ -551,7 +565,7 @@ function Library:create_ui()
     Tabs.Name = 'Tabs'
     Tabs.Size = UDim2.new(0, 129, 0, 401)
     Tabs.Selectable = false
-    Tabs.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    Tabs.AutomaticCanvasSize = Enum.AutomaticSize.XY
     Tabs.BackgroundTransparency = 1
     Tabs.Position = UDim2.new(0.026097271591424942, 0, 0.1111111119389534, 0)
     Tabs.BorderColor3 = Color3.fromRGB(0, 0, 0)
@@ -607,7 +621,7 @@ function Library:create_ui()
     Icon.ScaleType = Enum.ScaleType.Fit
     Icon.BorderColor3 = Color3.fromRGB(0, 0, 0)
     Icon.AnchorPoint = Vector2.new(0, 0.5)
-    Icon.Image = "rbxassetid://75876077127060" -- Updated rbxassetid
+    Icon.Image = 'rbxassetid://75876077127060' -- Updated rbxassetid
     Icon.BackgroundTransparency = 1
     Icon.Position = UDim2.new(0.02500000037252903, 0, 0.054999999701976776, 0)
     Icon.Name = 'Icon'
@@ -720,6 +734,7 @@ function Library:create_ui()
         end
     end
    
+
     function self:load()
         local content = {}
    
@@ -728,7 +743,7 @@ function Library:create_ui()
                 continue
             end
    
-            table.insert(content, object.Image)
+            table.insert(content, object)
         end
    
         ContentProvider:PreloadAsync(content)
@@ -753,7 +768,7 @@ function Library:create_ui()
     end
 
     function self:update_tabs(tab)
-        for _, object in Tabs:GetChildren() do
+        for index, object in Tabs:GetChildren() do
             if object.Name ~= 'Tab' then
                 continue
             end
@@ -814,14 +829,17 @@ function Library:create_ui()
         for _, object in Sections:GetChildren() do
             if object == left_section or object == right_section then
                 object.Visible = true
+
                 continue
             end
+
             object.Visible = false
         end
     end
 
     function self:create_tab(title, icon)
         local TabManager = {}
+
         local LayoutOrder = 0;
 
         local font_params = Instance.new('GetTextBoundsParams')
@@ -892,7 +910,7 @@ function Library:create_ui()
 
         local LeftSection = Instance.new('ScrollingFrame')
         LeftSection.Name = 'LeftSection'
-        LeftSection.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        LeftSection.AutomaticCanvasSize = Enum.AutomaticSize.XY
         LeftSection.ScrollBarThickness = 0
         LeftSection.Size = UDim2.new(0, 243, 0, 445)
         LeftSection.Selectable = false
@@ -919,7 +937,7 @@ function Library:create_ui()
 
         local RightSection = Instance.new('ScrollingFrame')
         RightSection.Name = 'RightSection'
-        RightSection.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        RightSection.AutomaticCanvasSize = Enum.AutomaticSize.XY
         RightSection.ScrollBarThickness = 0
         RightSection.Size = UDim2.new(0, 243, 0, 445)
         RightSection.Selectable = false
@@ -947,17 +965,19 @@ function Library:create_ui()
         self._tab += 1
 
         if first_tab then
-            self:update_tabs(Tab)
+            self:update_tabs(Tab, LeftSection, RightSection)
             self:update_sections(LeftSection, RightSection)
         end
 
         Tab.MouseButton1Click:Connect(function()
-            self:update_tabs(Tab)
+            self:update_tabs(Tab, LeftSection, RightSection)
             self:update_sections(LeftSection, RightSection)
         end)
 
         function TabManager:create_module(settings)
+
             local LayoutOrderModule = 0;
+
             local ModuleManager = {
                 _state = false,
                 _size = 0,
@@ -980,8 +1000,6 @@ function Library:create_ui()
             Module.BorderSizePixel = 0
             Module.BackgroundColor3 = Color3.fromRGB(40, 30, 20) -- Boba X Color
             Module.Parent = settings.section
-            Module.AutomaticSize = Enum.AutomaticSize.Y
-            Module.LayoutOrder = settings.LayoutOrder or 0
 
             local UIListLayout = Instance.new('UIListLayout')
             UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -1017,7 +1035,7 @@ function Library:create_ui()
             Icon.ImageTransparency = 0.699999988079071
             Icon.BorderColor3 = Color3.fromRGB(0, 0, 0)
             Icon.AnchorPoint = Vector2.new(0, 0.5)
-            Icon.Image = "rbxassetid://75876077127060" -- Updated rbxassetid
+            Icon.Image = 'rbxassetid://75876077127060' -- Updated rbxassetid
             Icon.BackgroundTransparency = 1
             Icon.Position = UDim2.new(0.07100000232458115, 0, 0.8199999928474426, 0)
             Icon.Name = 'Icon'
@@ -1154,7 +1172,6 @@ function Library:create_ui()
             Options.BorderSizePixel = 0
             Options.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
             Options.Parent = Module
-            Options.AutomaticSize = Enum.AutomaticSize.Y
 
             local UIPadding = Instance.new('UIPadding')
             UIPadding.PaddingTop = UDim.new(0, 8)
@@ -1227,7 +1244,7 @@ function Library:create_ui()
 
                     local font_params = Instance.new('GetTextBoundsParams')
                     font_params.Text = keybind_string
-                    font_params.Font = Font.new('rbxasset://fonts/families/Montserrat.json', Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+                    font_params.Font = Font.new('rbxasset://fonts/families/Montserrat.json', Enum.FontWeight.Bold)
                     font_params.Size = 10
                     font_params.Width = 10000
            
@@ -1371,7 +1388,7 @@ function Library:create_ui()
                 Title.TextXAlignment = Enum.TextXAlignment.Left
                 Title.TextYAlignment = Enum.TextYAlignment.Center
                 Title.TextSize = 12
-                Title.AutomaticSize = Enum.AutomaticSize.Y
+                Title.AutomaticSize = Enum.AutomaticSize.XY
                 Title.Parent = Paragraph
            
                 -- Body Text
@@ -1393,7 +1410,7 @@ function Library:create_ui()
                 Body.TextYAlignment = Enum.TextYAlignment.Top
                 Body.TextSize = 11
                 Body.TextWrapped = true
-                Body.AutomaticSize = Enum.AutomaticSize.Y
+                Body.AutomaticSize = Enum.AutomaticSize.XY
                 Body.Parent = Paragraph
            
                 -- Hover effect for Paragraph (optional)
@@ -1433,7 +1450,7 @@ function Library:create_ui()
                 local TextFrame = Instance.new('Frame')
                 TextFrame.BackgroundColor3 = Color3.fromRGB(50, 40, 30) -- Boba X Color
                 TextFrame.BackgroundTransparency = 0.1
-                TextFrame.Size = UDim2.new(0, 207, 0, settings.CustomYSize or 20) -- Initial size, auto-resized later
+                TextFrame.Size = UDim2.new(0, 207, 0, settings.CustomYSize) -- Initial size, auto-resized later
                 TextFrame.BorderSizePixel = 0
                 TextFrame.Name = "Text"
                 TextFrame.AutomaticSize = Enum.AutomaticSize.Y -- Support auto-resizing height
@@ -1463,7 +1480,7 @@ function Library:create_ui()
                 Body.TextYAlignment = Enum.TextYAlignment.Top
                 Body.TextSize = 10
                 Body.TextWrapped = true
-                Body.AutomaticSize = Enum.AutomaticSize.Y
+                Body.AutomaticSize = Enum.AutomaticSize.XY
                 Body.Parent = TextFrame
            
                 -- Hover effect for TextFrame (optional)
@@ -1797,7 +1814,7 @@ function Library:create_ui()
                     TextLabel.Parent = OuterFrame
                 end;
            
-                if not settings or (settings and not settings.disableline) then
+                if not settings or settings and not settings.disableline then
                     -- Create the inner divider frame that will be placed in the middle of the OuterFrame
                     local Divider = Instance.new('Frame')
                     Divider.Size = UDim2.new(1, 0, 0, dividerHeight)
@@ -1814,7 +1831,7 @@ function Library:create_ui()
                     Gradient.Color = ColorSequence.new({
                         ColorSequenceKeypoint.new(0, Color3.fromRGB(221, 169, 114)),  -- Start with boba color
                         ColorSequenceKeypoint.new(0.5, Color3.fromRGB(221, 169, 114)), -- Keep it boba color in the middle
-                        ColorSequenceKeypoint.new(1, Color3.fromRGB(221, 169, 114))  -- Fade to transparent on the right side
+                        ColorSequenceKeypoint.new(1, Color3.fromRGB(221, 169, 114, 0))  -- Fade to transparent on the right side
                     })
                     Gradient.Transparency = NumberSequence.new({
                         NumberSequenceKeypoint.new(0, 1),   
@@ -1834,7 +1851,9 @@ function Library:create_ui()
             end
            
             function ModuleManager:create_slider(settings)
+
                 LayoutOrderModule = LayoutOrderModule + 1
+
                 local SliderManager = {}
 
                 if self._size == 0 then
@@ -2004,6 +2023,7 @@ function Library:create_ui()
                     end)
                 end
 
+
                 if Library:flag_type(settings.flag, 'number') then
                     if not settings.ignoresaved then
                         SliderManager:set_percentage(Library._config._flags[settings.flag]);
@@ -2072,7 +2092,7 @@ function Library:create_ui()
                 end;
                
                 local TextLabel = Instance.new('TextLabel')
-                if SelectedLanguage == "th" then
+                if GG.SelectedLanguage == "th" then
                     TextLabel.FontFace = Font.new("rbxasset://fonts/families/NotoSansThai.json", Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
                     TextLabel.TextSize = 13;
                 else
@@ -2157,7 +2177,7 @@ function Library:create_ui()
                 Options.ScrollBarImageColor3 = Color3.fromRGB(0, 0, 0)
                 Options.Active = true
                 Options.ScrollBarImageTransparency = 1
-                Options.AutomaticCanvasSize = Enum.AutomaticSize.Y
+                Options.AutomaticCanvasSize = Enum.AutomaticSize.XY
                 Options.ScrollBarThickness = 0
                 Options.Name = 'Options'
                 Options.Size = UDim2.new(0, 207, 0, 0)
@@ -2194,7 +2214,9 @@ function Library:create_ui()
                         local CurrentTargetValue = nil;
                        
                         if #Library._config._flags[settings.flag] > 0 then
+
                             CurrentTargetValue = convertTableToString(Library._config._flags[settings.flag]);
+
                         end;
 
                         local selected = {}
@@ -2254,7 +2276,7 @@ function Library:create_ui()
 
                         CurrentTargetValue = convertStringToTable(CurrentOption.Text);
 
-                        for _, v in pairs(CurrentTargetValue) do
+                        for _, v in CurrentTargetValue do
                             if not table.find(OptionsChild, v) and table.find(selected, v) then
                                 table.remove(selected, _)
                             end;
@@ -2345,7 +2367,7 @@ function Library:create_ui()
                 if #settings.options > 0 then
                     DropdownManager._size = 3
 
-                    for index, value in pairs(settings.options) do
+                    for index, value in settings.options do
                         local Option = Instance.new('TextButton')
                         Option.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
                         Option.Active = false
@@ -2455,7 +2477,7 @@ function Library:create_ui()
                 FeatureButton.Size = UDim2.new(1, -35, 0, 16)
                 FeatureButton.BackgroundColor3 = Color3.fromRGB(50, 40, 30) -- Boba X Color
                 FeatureButton.TextColor3 = Color3.fromRGB(210, 210, 210)
-                FeatureButton.Text = "     " .. (settings.title or "Feature")
+                FeatureButton.Text = "     " .. settings.title or "     " .. "Feature"
                 FeatureButton.AutoButtonColor = false
                 FeatureButton.TextXAlignment = Enum.TextXAlignment.Left
                 FeatureButton.TextTransparency = 0.2
